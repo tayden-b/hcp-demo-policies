@@ -1,23 +1,28 @@
 import "tfplan/v2" as tfplan
 
-# Find all azurerm_api_management_api resources being created or updated
+# Ensure we safely initialize the list, even if nothing matches
 api_resources = filter tfplan.resource_changes as _, rc {
   rc.type is "azurerm_api_management_api" and
   (rc.change.actions contains "create" or rc.change.actions contains "update")
 }
 
-# Collect violations: any resources missing the required 'api-owner' tag
+# Fallback to empty list if api_resources is undefined (extra safe)
+api_resources = api_resources else []
+
+# Check for missing tags
 violations = filter api_resources as _, r {
   not r.change.after.tags contains "api-owner"
 }
 
-# Optional: print violations (for advisory/soft use)
-print("Found", length(violations), "API(s) missing 'api-owner' tag.")
+violations = violations else []
+
+# Debugging output
+print("Found", length(violations), "undefined API(s) missing 'api-owner' tag.")
+
 for violations as _, v {
   print("Violation at:", v.address)
 }
 
-# The main rule must return true if there are no violations
 main = rule {
   length(violations) is 0
 }
