@@ -12,5 +12,9 @@ api_resources = filter tfplan.resource_changes as _, rc where
 main = rule {
     all api_resources as _, r {
         r.change.after.tags["api-owner"] is not null
+
+        if not has_owner_tag {
+            print("VIOLATION: The API '", r.address, "' is missing the required 'api-owner' tag.")
+        }
     }
 }
