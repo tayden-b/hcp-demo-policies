@@ -1,4 +1,3 @@
-# Import the Terraform plan data so we can inspect it
 import "tfplan/v2" as tfplan
 
 # Find all azurerm_api_management_api resources being created or updated
@@ -7,20 +6,18 @@ api_resources = filter tfplan.resource_changes as _, rc {
   (rc.change.actions contains "create" or rc.change.actions contains "update")
 }
 
-# Rule: All APIs must have the 'api-owner' tag
+# Collect violations: any resources missing the required 'api-owner' tag
+violations = filter api_resources as _, r {
+  not r.change.after.tags contains "api-owner"
+}
+
+# Optional: print violations (for advisory/soft use)
+print("Found", length(violations), "API(s) missing 'api-owner' tag.")
+for violations as _, v {
+  print("Violation at:", v.address)
+}
+
+# The main rule must return true if there are no violations
 main = rule {
-  all api_resources as _, r {
-    r.change.after.tags["api-owner"] is not null
-  }
-}
-
-
-# Optional: Print violations (debugging only)
-violation_apis = filter api_resources as _, r {
-  r.change.after.tags["api-owner"] is null
-}
-
-# Print violations
-foreach violation_apis as _, r {
-  print("VIOLATION: The API '", r.address, "' is missing the required 'api-owner' tag.")
+  length(violations) is 0
 }
