@@ -1,0 +1,16 @@
+# Import the Terraform plan data so we can inspect it
+import "tfplan/v2" as tfplan
+
+# Define a rule to find all Azure APIM API resources being created or updated
+api_resources = filter tfplan.resource_changes as _, rc where
+    rc.type is "azurerm_api_management_api" and
+    (rc.change.actions contains "create" or rc.change.actions contains "update")
+
+# --- Main Rule ---
+# This rule will be evaluated by HCP Terraform.
+# It passes if all APIs being changed have an 'api-owner' tag.
+main = rule {
+    all api_resources as _, r {
+        r.change.after.tags["api-owner"] is not null
+    }
+}
